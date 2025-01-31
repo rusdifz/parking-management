@@ -30,9 +30,9 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect langsung tanpa perlu reload
+      // Redirect berdasarkan role
       if (data.role === "admin") {
-        window.location.href = "/admin";
+        window.location.href = "/admin"; // Gunakan window.location untuk memastikan cookie ter-set
       } else if (data.role === "kasir") {
         window.location.href = "/kasir";
       }

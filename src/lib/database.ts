@@ -1,4 +1,4 @@
-export type Vehicle = {
+type Vehicle = {
   id: string;
   type: "motor" | "mobil";
   plat: string;
@@ -9,57 +9,52 @@ export type Vehicle = {
 
 class ParkingDB {
   private vehicles: Vehicle[] = [];
-  private readonly capacities = {
-    1: { type: "motor", max: 10 },
-    2: { type: "mobil", max: 6 },
-  };
+  private listeners: Array<() => void> = [];
 
   constructor() {
     this.loadFromLocalStorage();
+    window.addEventListener("storage", this.handleStorageEvent);
   }
 
-  private notifyListeners() {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("parkingUpdate"));
+  private handleStorageEvent = (e: StorageEvent) => {
+    if (e.key === "parkingData") {
+      this.loadFromLocalStorage();
+      this.notifyListeners();
     }
-  }
-
-  private saveToLocalStorage() {
-    localStorage.setItem("parkingData", JSON.stringify(this.vehicles));
-  }
+  };
 
   private loadFromLocalStorage() {
     const data = localStorage.getItem("parkingData");
     if (data) {
       this.vehicles = JSON.parse(data, (key, value) => {
-        if (key === "masuk" || key === "keluar") {
-          return new Date(value);
-        }
+        if (key === "masuk" || key === "keluar") return new Date(value);
         return value;
       });
     }
   }
 
-  getParkingStatus() {
-    const counts = {
-      1: this.vehicles.filter((v) => v.lantai === 1 && !v.keluar).length,
-      2: this.vehicles.filter((v) => v.lantai === 2 && !v.keluar).length,
-    };
+  private saveToLocalStorage() {
+    localStorage.setItem("parkingData", JSON.stringify(this.vehicles));
+    window.dispatchEvent(new Event("parkingDataChanged"));
+  }
 
-    return {
-      1: { used: counts[1], ...this.capacities[1] },
-      2: { used: counts[2], ...this.capacities[2] },
+  private notifyListeners() {
+    this.listeners.forEach((listener) => listener());
+  }
+
+  subscribe(listener: () => void) {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
     };
   }
 
-  addVehicle(vehicle: Omit<Vehicle, "id" | "masuk">) {
-    const status: any = this.getParkingStatus();
-    const floor = vehicle.lantai;
+  // Mock API Methods
+  async getVehicles(): Promise<Vehicle[]> {
+    return [...this.vehicles];
+  }
 
-    if (status[floor].used >= status[floor].max) {
-      throw new Error("Lantai penuh");
-    }
-
+  async addVehicle(vehicle: Omit<Vehicle, "id" | "masuk">) {
     const newVehicle = {
       ...vehicle,
       id: Math.random().toString(36).substr(2, 9),
@@ -67,27 +62,32 @@ class ParkingDB {
     };
 
     this.vehicles.push(newVehicle);
-
-    this.notifyListeners();
-
+    this.saveToLocalStorage();
     return newVehicle;
   }
 
-  removeVehicle(id: string) {
+  async removeVehicle(id: string) {
     const vehicle = this.vehicles.find((v) => v.id === id);
     if (vehicle) {
       vehicle.keluar = new Date();
+      this.saveToLocalStorage();
     }
-    this.notifyListeners();
     return vehicle;
   }
 
-  getAllVehicles() {
-    return this.vehicles;
-  }
-
-  getActiveVehicles() {
-    return this.vehicles.filter((v) => !v.keluar);
+  async getParkingStatus() {
+    return {
+      1: {
+        used: this.vehicles.filter((v) => v.lantai === 1 && !v.keluar).length,
+        type: "motor",
+        max: 10,
+      },
+      2: {
+        used: this.vehicles.filter((v) => v.lantai === 2 && !v.keluar).length,
+        type: "mobil",
+        max: 6,
+      },
+    };
   }
 }
 

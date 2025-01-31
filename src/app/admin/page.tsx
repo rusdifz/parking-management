@@ -2,44 +2,23 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/database";
 import VehicleTable from "@/components/VehicleTable";
-import { protectRoute } from "@/lib/auth";
 
 export default function AdminPage() {
-  // const [vehicles, setVehicles] = useState(db.getActiveVehicles());
-  // const [search, setSearch] = useState("");
-
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     setVehicles([...db.getAllVehicles()]);
-  //   }, 5000);
-
-  //   return () => clearInterval(interval);
-  // }, []);
-
-  useEffect(() => {
-    protectRoute(["admin"]);
-  }, []);
-
-  const [vehicles, setVehicles] = useState(db.getAllVehicles());
+  const [vehicles, setVehicles]: any = useState([]);
   const [search, setSearch] = useState("");
 
-  // Auto-refresh setiap 1 detik
   useEffect(() => {
-    const interval = setInterval(() => {
-      setVehicles([...db.getAllVehicles()]);
-    }, 1000);
+    const loadData = async () => {
+      setVehicles(await db.getVehicles());
+    };
 
-    return () => clearInterval(interval);
+    loadData();
+    const unsubscribe = db.subscribe(loadData);
+
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const handleUpdate = () => setVehicles([...db.getAllVehicles()]);
-
-    window.addEventListener("parkingUpdate", handleUpdate);
-    return () => window.removeEventListener("parkingUpdate", handleUpdate);
-  }, []);
-
-  const filteredVehicles = vehicles.filter((vehicle) =>
+  const filteredVehicles = vehicles.filter((vehicle: any) =>
     vehicle.plat.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -62,7 +41,7 @@ export default function AdminPage() {
 
         <div className="bg-white p-6 rounded-xl shadow-lg">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">
-            Daftar Kendaraan Parkir
+            Daftar Kendaraan ({filteredVehicles.length})
           </h2>
           <VehicleTable vehicles={filteredVehicles} />
         </div>

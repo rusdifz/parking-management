@@ -3,25 +3,25 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/database";
 import ParkingForm from "@/components/ParkingForm";
 import ParkingCard from "@/components/ParkingCard";
-import { protectRoute } from "@/lib/auth";
 
 export default function KasirPage() {
-  useEffect(() => {
-    protectRoute(["kasir"]);
-  }, []);
+  const [parkingStatus, setParkingStatus] = useState({
+    1: { used: 0, max: 10, type: "motor" },
+    2: { used: 0, max: 6, type: "mobil" },
+  });
+  const [vehicles, setVehicles]: any = useState([]);
 
-  const [parkingStatus, setParkingStatus] = useState(db.getParkingStatus());
-  // const [vehicles, setVehicles] = useState(db.getAllVehicles());
-  const [vehicles, setVehicles] = useState(db.getActiveVehicles());
   useEffect(() => {
-    setParkingStatus(db.getParkingStatus());
-    setVehicles([...db.getAllVehicles()]);
-  }, []);
+    const loadData = async () => {
+      setParkingStatus(await db.getParkingStatus());
+      setVehicles(await db.getVehicles());
+    };
 
-  const handleVehicleAdded = () => {
-    setParkingStatus(db.getParkingStatus());
-    setVehicles([...db.getAllVehicles()]);
-  };
+    loadData();
+    const unsubscribe = db.subscribe(loadData);
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
@@ -44,7 +44,31 @@ export default function KasirPage() {
         />
       </div>
 
-      <ParkingForm onVehicleAdded={handleVehicleAdded} />
+      <ParkingForm />
+
+      <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold mb-4">Kendaraan Aktif</h2>
+        <div className="space-y-2">
+          {vehicles
+            .filter((v) => !v.keluar)
+            .map((vehicle) => (
+              <div
+                key={vehicle.id}
+                className="flex justify-between items-center p-3 bg-gray-50 rounded"
+              >
+                <div>
+                  <span className="font-medium">{vehicle.plat}</span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    Lantai {vehicle.lantai}
+                  </span>
+                </div>
+                <span className="text-sm text-gray-500">
+                  {new Date(vehicle.masuk).toLocaleTimeString()}
+                </span>
+              </div>
+            ))}
+        </div>
+      </div>
     </div>
   );
 }
